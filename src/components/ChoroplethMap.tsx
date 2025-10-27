@@ -74,8 +74,8 @@ export function ChoroplethMap({ geoJsonData, districtData, datasetName }: Chorop
   }, [minValue, maxValue]);
 
   const handleMouseEnter = (geo: any, event: React.MouseEvent) => {
-    const districtId = geo.properties.id || geo.properties.ID || geo.properties.district_id;
-    const districtName = geo.properties.name || geo.properties.NAME || geo.properties.district_name || districtId;
+    const districtId = geo.properties.District || geo.properties.id || geo.properties.ID || geo.properties.district_id;
+    const districtName = geo.properties.District || geo.properties.name || geo.properties.NAME || geo.properties.district_name || districtId;
     const value = dataLookup.get(districtId);
     
     setHoveredGeo(districtId);
@@ -116,7 +116,7 @@ export function ChoroplethMap({ geoJsonData, districtData, datasetName }: Chorop
           <Geographies geography={geoJsonData}>
             {({ geographies }) =>
               geographies.map((geo) => {
-                const districtId = geo.properties.id || geo.properties.ID || geo.properties.district_id;
+                const districtId = geo.properties.District || geo.properties.id || geo.properties.ID || geo.properties.district_id;
                 const value = dataLookup.get(districtId);
                 const isHovered = hoveredGeo === districtId;
 

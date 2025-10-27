@@ -3,216 +3,59 @@ import { WelcomePage } from './components/WelcomePage';
 import { AboutPage } from './components/AboutPage';
 import { MapViewer } from './components/MapViewer';
 import { LanguageSelector } from './components/LanguageSelector';
-import { LanguageProvider } from './lib/i18n';
-import { initializeDuckDB, loadParquetFile, queryData } from './lib/duckdb';
+import { useLanguage } from './lib/i18n';
+import { initializeDuckDB, loadInitialParquet, getCategoryPaths, getEnglishFullPathFromDatasetId, getDistrictDataForVariable, getDataTableIdsForCategoryEng } from './lib/duckdb';
 import { DatasetTreeNode, DatasetMetadata, GeoJSONData, DistrictData } from './types';
 import { Toaster } from './components/ui/sonner';
 import { toast } from 'sonner@2.0.3';
 
 type Page = 'welcome' | 'about' | 'map';
 
-// Mock data - replace with your actual data loading logic
-const mockTreeData: DatasetTreeNode[] = [
-  {
-    id: '1',
-    name: 'Demographics',
-    level: 0,
-    children: [
-      {
-        id: '1.1',
-        name: 'Population',
-        level: 1,
-        children: [
-          {
-            id: '1.1.1',
-            name: 'Total Population',
-            level: 2,
-            children: [
-              {
-                id: '1.1.1.1',
-                name: 'Total Population 1921',
-                level: 3,
-                datasetId: 'pop_1921'
-              },
-              {
-                id: '1.1.1.2',
-                name: 'Total Population 1931',
-                level: 3,
-                datasetId: 'pop_1931'
-              }
-            ]
-          },
-          {
-            id: '1.1.2',
-            name: 'Urban Population',
-            level: 2,
-            children: [
-              {
-                id: '1.1.2.1',
-                name: 'Urban Population 1921',
-                level: 3,
-                datasetId: 'urban_pop_1921'
-              },
-              {
-                id: '1.1.2.2',
-                name: 'Urban Population 1931',
-                level: 3,
-                datasetId: 'urban_pop_1931'
-              }
-            ]
-          }
-        ]
-      },
-      {
-        id: '1.2',
-        name: 'Ethnicity',
-        level: 1,
-        children: [
-          {
-            id: '1.2.1',
-            name: 'Polish Population %',
-            level: 2,
-            datasetId: 'eth_polish'
-          },
-          {
-            id: '1.2.2',
-            name: 'Jewish Population %',
-            level: 2,
-            datasetId: 'eth_jewish'
-          },
-          {
-            id: '1.2.3',
-            name: 'Ukrainian Population %',
-            level: 2,
-            datasetId: 'eth_ukrainian'
-          }
-        ]
+// Build tree from slash-separated category paths
+function buildTreeFromPaths(paths: string[]): DatasetTreeNode[] {
+  const root: DatasetTreeNode[] = [];
+  // Map of pathKey => node for quick lookup
+  const nodeMap = new Map<string, DatasetTreeNode>();
+
+  const makeId = (parts: string[], level: number) => `${level}:${parts.join('/')}`;
+  const makeDatasetId = (parts: string[]) => `ds:${parts.join('/')}`; // stable, human-readable
+
+  for (const raw of paths) {
+    const parts = raw.split('/').map(s => s.trim()).filter(Boolean);
+    const chain: string[] = [];
+    let parentChildren = root;
+
+    parts.forEach((name, idx) => {
+      chain.push(name);
+      const pathKey = chain.join('/');
+      const level = idx; // 0-based
+      let node = nodeMap.get(pathKey);
+
+      if (!node) {
+        node = {
+          id: makeId(chain, level),
+          name,
+          level,
+          children: [],
+        };
+
+        parentChildren.push(node);
+        nodeMap.set(pathKey, node);
       }
-    ]
-  },
-  {
-    id: '2',
-    name: 'Economy',
-    level: 0,
-    children: [
-      {
-        id: '2.1',
-        name: 'Agriculture',
-        level: 1,
-        children: [
-          {
-            id: '2.1.1',
-            name: 'Land Use',
-            level: 2,
-            children: [
-              {
-                id: '2.1.1.1',
-                name: 'Arable Land (hectares)',
-                level: 3,
-                datasetId: 'agr_arable'
-              },
-              {
-                id: '2.1.1.2',
-                name: 'Forest Land (hectares)',
-                level: 3,
-                datasetId: 'agr_forest'
-              }
-            ]
-          },
-          {
-            id: '2.1.2',
-            name: 'Livestock',
-            level: 2,
-            children: [
-              {
-                id: '2.1.2.1',
-                name: 'Cattle Count',
-                level: 3,
-                datasetId: 'livestock_cattle'
-              },
-              {
-                id: '2.1.2.2',
-                name: 'Horse Count',
-                level: 3,
-                datasetId: 'livestock_horses'
-              }
-            ]
-          }
-        ]
-      },
-      {
-        id: '2.2',
-        name: 'Industry',
-        level: 1,
-        children: [
-          {
-            id: '2.2.1',
-            name: 'Number of Factories',
-            level: 2,
-            datasetId: 'ind_factories'
-          },
-          {
-            id: '2.2.2',
-            name: 'Industrial Workers',
-            level: 2,
-            datasetId: 'ind_workers'
-          }
-        ]
+
+      if (idx === parts.length - 1) {
+        // Leaf node represents a dataset
+        node.datasetId = makeDatasetId(parts);
       }
-    ]
-  },
-  {
-    id: '3',
-    name: 'Infrastructure',
-    level: 0,
-    children: [
-      {
-        id: '3.1',
-        name: 'Transportation',
-        level: 1,
-        children: [
-          {
-            id: '3.1.1',
-            name: 'Railway Length (km)',
-            level: 2,
-            datasetId: 'rail_length'
-          },
-          {
-            id: '3.1.2',
-            name: 'Road Length (km)',
-            level: 2,
-            datasetId: 'road_length'
-          }
-        ]
-      },
-      {
-        id: '3.2',
-        name: 'Education',
-        level: 1,
-        children: [
-          {
-            id: '3.2.1',
-            name: 'Primary Schools',
-            level: 2,
-            datasetId: 'edu_primary_schools'
-          },
-          {
-            id: '3.2.2',
-            name: 'Secondary Schools',
-            level: 2,
-            datasetId: 'edu_secondary_schools'
-          },
-          {
-            id: '3.2.3',
-            name: 'Literacy Rate %',
-            level: 2,
-            datasetId: 'edu_literacy'
-          }
-        ]
-      }
-    ]
+
+      // Prepare children for next level
+      if (!node.children) node.children = [];
+      parentChildren = node.children;
+    });
   }
-];
+
+  return root;
+}
 
 // Mock GeoJSON data - replace with your actual GeoJSON
 const mockGeoJsonData: GeoJSONData = {
@@ -295,6 +138,9 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('welcome');
   const [dbInitialized, setDbInitialized] = useState(false);
   const [heroImageUrl, setHeroImageUrl] = useState('');
+  const [treeData, setTreeData] = useState<DatasetTreeNode[]>([]);
+  const [geoJsonData, setGeoJsonData] = useState<GeoJSONData>({ type: 'FeatureCollection', features: [] });
+  const { language } = useLanguage();
 
   useEffect(() => {
     // Initialize DuckDB on app load
@@ -302,12 +148,22 @@ export default function App() {
       try {
         toast.info('Initializing database...');
         await initializeDuckDB();
-        setDbInitialized(true);
         toast.success('Database initialized successfully');
-        
-        // Load your parquet files here
-        // Example: await loadParquetFile(conn, 'metadata', '/data/metadata.parquet');
-        // Example: await loadParquetFile(conn, 'datasets', '/data/datasets.parquet');
+
+        // Load Parquet files from public/data into DuckDB tables
+        toast.info('Loading Parquet files from /data ...');
+        const results = await loadInitialParquet();
+        for (const r of results) {
+          if (r.loaded) {
+            toast.success(`Loaded ${r.table} (${r.rowCount} rows)`);
+          } else {
+            // Non-fatal: some files may be absent
+            toast.message(`Skipped ${r.table}`);
+          }
+        }
+
+        // Mark DB ready only after tables are loaded
+        setDbInitialized(true);
       } catch (error) {
         console.error('Failed to initialize DuckDB:', error);
         toast.error('Failed to initialize database');
@@ -317,11 +173,35 @@ export default function App() {
     init();
   }, []);
 
+  // Build dataset tree based on language and metadata
   useEffect(() => {
-    // Fetch hero image
-    fetch('https://images.unsplash.com/photo-1590502593747-42a996133562?w=1920&q=80')
-      .then(() => setHeroImageUrl('https://images.unsplash.com/photo-1590502593747-42a996133562?w=1920&q=80'))
-      .catch(() => setHeroImageUrl('https://images.unsplash.com/photo-1590502593747-42a996133562?w=1920&q=80'));
+    const loadTree = async () => {
+      if (!dbInitialized) return;
+      try {
+        const paths = await getCategoryPaths(language);
+        const tree = buildTreeFromPaths(paths);
+        setTreeData(tree);
+      } catch (err) {
+        console.error('Failed to build dataset tree:', err);
+        setTreeData([]);
+      }
+    };
+    loadTree();
+  }, [dbInitialized, language]);
+
+  useEffect(() => {
+    // Use local hero image; BASE_URL works in dev and on GitHub Pages
+    setHeroImageUrl(`${import.meta.env.BASE_URL}images/hero.jpg`);
+  }, []);
+
+  useEffect(() => {
+    // Load GeoJSON from public path using BASE_URL
+    fetch(`${import.meta.env.BASE_URL}data/geo/districts.geojson`)
+      .then(r => r.json())
+      .then((gj) => setGeoJsonData(gj as GeoJSONData))
+      .catch((err) => {
+        console.error('Failed to load GeoJSON', err);
+      });
   }, []);
 
   const handleLoadDataset = async (datasetId: string): Promise<{ data: DistrictData[], metadata: DatasetMetadata }> => {
@@ -353,9 +233,38 @@ export default function App() {
 
     return { data: mockData, metadata: mockMetadata };
   };
+  
+  // Real loader using DuckDB and language-aware mapping
+  const loadDatasetReal = async (datasetId: string): Promise<{ data: DistrictData[], metadata: DatasetMetadata, variants: string[] }> => {
+    // Get full English category path for filtering variable_name
+    const engFullPath = await getEnglishFullPathFromDatasetId(datasetId, language);
+    // Log the path that will be used in district_datasets.variable_name
+    console.log('[Dataset Selection] Querying district_datasets.variable_name with path:', engFullPath);
+
+    const rows = await getDistrictDataForVariable(engFullPath);
+    const data: DistrictData[] = rows.map((r: any) => ({
+      districtId: r.District,
+      districtName: r.District,
+      value: typeof r.value === 'number' ? r.value : 0,
+    }));
+
+    // Fetch dataset variants (data_table_id list) for this category
+    const variants = await getDataTableIdsForCategoryEng(engFullPath);
+
+    const metadata: DatasetMetadata = {
+      id: datasetId,
+      name: engFullPath,
+      source: 'district_datasets',
+      sourceLink: '#',
+      date: '',
+      description: `Values for ${engFullPath} from district_datasets`,
+    };
+
+    return { data, metadata, variants };
+  };
 
   return (
-    <LanguageProvider>
+    <>
       {currentPage === 'welcome' && (
         <WelcomePage
           onExploreData={() => setCurrentPage('map')}
@@ -371,14 +280,14 @@ export default function App() {
       {currentPage === 'map' && (
         <MapViewer
           onBack={() => setCurrentPage('welcome')}
-          treeData={mockTreeData}
-          geoJsonData={mockGeoJsonData}
-          onLoadDataset={handleLoadDataset}
+          treeData={treeData}
+          geoJsonData={geoJsonData}
+          onLoadDataset={loadDatasetReal}
         />
       )}
 
       <LanguageSelector />
       <Toaster />
-    </LanguageProvider>
+    </>
   );
 }

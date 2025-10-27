@@ -12,7 +12,7 @@ interface MapViewerProps {
   onBack: () => void;
   treeData: DatasetTreeNode[];
   geoJsonData: GeoJSONData;
-  onLoadDataset: (datasetId: string) => Promise<{ data: DistrictData[], metadata: DatasetMetadata }>;
+  onLoadDataset: (datasetId: string) => Promise<{ data: DistrictData[], metadata: DatasetMetadata, variants: string[] }>;
 }
 
 export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset }: MapViewerProps) {
@@ -24,17 +24,21 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset }: MapV
   const [isLoading, setIsLoading] = useState(false);
   const [datasetSelectorOpen, setDatasetSelectorOpen] = useState(false);
   const [metadataSheetOpen, setMetadataSheetOpen] = useState(false);
+  const [variants, setVariants] = useState<string[]>([]);
+  const [selectedVariant, setSelectedVariant] = useState<string | undefined>();
 
   const handleSelectDataset = async (datasetId: string, path: string[]) => {
     setIsLoading(true);
     setDatasetSelectorOpen(false);
     
     try {
-      const { data, metadata } = await onLoadDataset(datasetId);
+      const { data, metadata, variants } = await onLoadDataset(datasetId);
       setSelectedDatasetId(datasetId);
       setCurrentData(data);
       setCurrentMetadata(metadata);
       setDatasetPath(path);
+      setVariants(variants);
+      setSelectedVariant(undefined);
     } catch (error) {
       console.error('Error loading dataset:', error);
     } finally {
@@ -76,6 +80,17 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset }: MapV
             </SheetContent>
           </Sheet>
           
+          {/* Dataset Variant Selector */}
+          <div>
+            <VariantSelect
+              disabled={!currentMetadata || variants.length === 0}
+              value={selectedVariant}
+              onChange={setSelectedVariant}
+              options={variants}
+              label={t('map.datasetVariant')}
+            />
+          </div>
+
           <Sheet open={metadataSheetOpen} onOpenChange={setMetadataSheetOpen}>
             <SheetTrigger asChild>
               <Button 
@@ -142,3 +157,32 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset }: MapV
     </div>
   );
 }
+
+// Lightweight select using shadcn Select primitives styled like a small outline button
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+
+interface VariantSelectProps {
+  disabled?: boolean;
+  value?: string;
+  onChange: (value: string) => void;
+  options: string[];
+  label: string;
+}
+
+function VariantSelect({ disabled, value, onChange, options, label }: VariantSelectProps) {
+  return (
+    <Select disabled={disabled} value={value} onValueChange={onChange}>
+      <SelectTrigger className="h-9 w-48 text-sm">
+        <SelectValue placeholder={label} />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((opt) => (
+          <SelectItem key={opt} value={opt}>
+            {opt}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+

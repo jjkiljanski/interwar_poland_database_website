@@ -4,6 +4,9 @@
   import path from 'path';
 
   export default defineConfig({
+    // Base path for GitHub Pages project site
+    // For local dev, Vite injects import.meta.env.BASE_URL accordingly
+    base: '/interwar_poland_database_website/',
     plugins: [react()],
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],

@@ -12,20 +12,20 @@ interface Translations {
 const translations: Translations = {
   // Welcome Page
   'welcome.title': {
-    en: 'Interwar Poland District Data Explorer',
-    pl: 'Eksplorator Danych Powiatowych Międzywojennej Polski'
+    en: 'Economic Geography of Interwar Poland',
+    pl: 'Geografia Ekonomiczna Międzywojennej Polski'
   },
   'welcome.subtitle': {
-    en: 'Explore comprehensive district-level statistical data from Poland\'s interwar period (1918-1939)',
-    pl: 'Przeglądaj kompleksowe dane statystyczne na poziomie powiatowym z okresu międzywojennego Polski (1918-1939)'
+    en: 'District-level database of socio-economic data for interwar Poland (1918-1939)',
+    pl: 'Kompleksowa baza danych społeczno-ekonomicznych dla II RP na poziomie powiatowym (1918-1939)'
   },
   'welcome.exploreButton': {
     en: 'Explore Datasets',
-    pl: 'Przeglądaj Zbiory Danych'
+    pl: 'Przeglądaj Dane'
   },
   'welcome.aboutButton': {
     en: 'About Project',
-    pl: 'O Projekcie'
+    pl: 'Na temat projektu'
   },
   
   // Map Viewer
@@ -48,6 +48,10 @@ const translations: Translations = {
   'map.datasetInfo': {
     en: 'Dataset Info',
     pl: 'Info o Zbiorze'
+  },
+  'map.datasetVariant': {
+    en: 'Dataset Variant',
+    pl: 'Wariant Zbioru'
   },
   'map.noDataset': {
     en: 'No Dataset Selected',
@@ -156,7 +160,7 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguage] = useState<Language>('en');
+  const [language, setLanguage] = useState<Language>('pl');
 
   const t = (key: string): string => {
     return translations[key]?.[language] || key;
