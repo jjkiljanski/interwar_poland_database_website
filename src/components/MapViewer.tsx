@@ -2,43 +2,68 @@ import { useState } from 'react';
 import { ChoroplethMap } from './ChoroplethMap';
 import { DatasetSelector } from './DatasetSelector';
 import { MetadataPanel } from './MetadataPanel';
-import { DatasetTreeNode, DatasetMetadata, GeoJSONData, DistrictData } from '../types';
+import { VariantInfoPanel } from './VariantInfoPanel';
+import { DatasetTreeNode, GeoJSONData, DistrictData } from '../types';
 import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
 import { ArrowLeft, Menu, Info } from 'lucide-react';
 import { useLanguage } from '../lib/i18n';
 
+type VariantOption = { id: string; label: string };
+
 interface MapViewerProps {
   onBack: () => void;
   treeData: DatasetTreeNode[];
   geoJsonData: GeoJSONData;
-  onLoadDataset: (datasetId: string) => Promise<{ data: DistrictData[], metadata: DatasetMetadata, variants: string[] }>;
+  onLoadDataset: (datasetId: string) => Promise<{ data: DistrictData[], variants: VariantOption[], dataTableMeta: Record<string, any>, columnMeta: Record<string, any> }>;
+  onLoadVariant: (datasetId: string, variantId: string) => Promise<{ data: DistrictData[], dataTableMeta: Record<string, any>, columnMeta: Record<string, any> }>;
+  onDatasetLoaded: (hasData: boolean) => void;
 }
 
-export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset }: MapViewerProps) {
+export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoadVariant, onDatasetLoaded }: MapViewerProps) {
   const { t } = useLanguage();
   const [selectedDatasetId, setSelectedDatasetId] = useState<string | undefined>();
-  const [currentMetadata, setCurrentMetadata] = useState<DatasetMetadata | undefined>();
+  const [dataTableMeta, setDataTableMeta] = useState<Record<string, any> | undefined>();
+  const [columnMeta, setColumnMeta] = useState<Record<string, any> | undefined>();
   const [currentData, setCurrentData] = useState<DistrictData[]>([]);
   const [datasetPath, setDatasetPath] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [datasetSelectorOpen, setDatasetSelectorOpen] = useState(false);
   const [metadataSheetOpen, setMetadataSheetOpen] = useState(false);
-  const [variants, setVariants] = useState<string[]>([]);
-  const [selectedVariant, setSelectedVariant] = useState<string | undefined>();
+  const [variants, setVariants] = useState<VariantOption[]>([]);
+  const [selectedVariant, setSelectedVariant] = useState<string>('');
+
+  const handleVariantChange = async (variantId: string) => {
+    setSelectedVariant(variantId);
+    if (!selectedDatasetId) return;
+    try {
+      setIsLoading(true);
+      const { data, dataTableMeta, columnMeta } = await onLoadVariant(selectedDatasetId, variantId);
+      setCurrentData(data);
+      setDataTableMeta(dataTableMeta);
+      setColumnMeta(columnMeta);
+      onDatasetLoaded(data.length > 0);
+    } catch (e) {
+      console.error('Error loading variant data:', e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSelectDataset = async (datasetId: string, path: string[]) => {
     setIsLoading(true);
     setDatasetSelectorOpen(false);
     
     try {
-      const { data, metadata, variants } = await onLoadDataset(datasetId);
+      const { data, variants, dataTableMeta, columnMeta } = await onLoadDataset(datasetId);
       setSelectedDatasetId(datasetId);
       setCurrentData(data);
-      setCurrentMetadata(metadata);
+      setDataTableMeta(dataTableMeta);
+      setColumnMeta(columnMeta);
       setDatasetPath(path);
       setVariants(variants);
-      setSelectedVariant(undefined);
+      setSelectedVariant(variants[0]?.id ?? '');
+      onDatasetLoaded(data.length > 0);
     } catch (error) {
       console.error('Error loading dataset:', error);
     } finally {
@@ -83,9 +108,9 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset }: MapV
           {/* Dataset Variant Selector */}
           <div>
             <VariantSelect
-              disabled={!currentMetadata || variants.length === 0}
+              disabled={!selectedDatasetId || variants.length === 0}
               value={selectedVariant}
-              onChange={setSelectedVariant}
+              onChange={handleVariantChange}
               options={variants}
               label={t('map.datasetVariant')}
             />
@@ -96,7 +121,7 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset }: MapV
               <Button 
                 variant="outline" 
                 size="sm"
-                disabled={!currentMetadata}
+                disabled={!dataTableMeta && !columnMeta}
               >
                 <Info className="h-4 w-4 mr-2" />
                 {t('map.datasetInfo')}
@@ -107,8 +132,8 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset }: MapV
                 <SheetTitle>{t('metadata.title')}</SheetTitle>
                 <SheetDescription>View metadata for the selected dataset</SheetDescription>
               </SheetHeader>
-              {currentMetadata && (
-                <MetadataPanel metadata={currentMetadata} />
+              {(dataTableMeta || columnMeta) && (
+                <VariantInfoPanel dataTableMeta={dataTableMeta} columnMeta={columnMeta} />
               )}
             </SheetContent>
           </Sheet>
@@ -132,23 +157,29 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset }: MapV
             <ChoroplethMap
               geoJsonData={geoJsonData}
               districtData={currentData}
-              datasetName={currentMetadata?.name}
+              datasetName={(columnMeta as any)?.column_name || selectedVariant}
             />
           ) : (
-            <div className="h-full flex items-center justify-center bg-gray-50">
-              <div className="text-center max-w-md px-4">
-                <div className="mb-4">
-                  <svg className="w-16 h-16 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                  </svg>
+            <div className="h-full flex items-center justify-center bg-transparent">
+              <div className="max-w-md w-full px-4">
+                <div className="rounded-xl border border-border bg-white text-foreground shadow-xl">
+                  <div className="p-6 text-center">
+                    <div className="h-3" aria-hidden="true" />
+                    <div className="mb-4">
+                      <svg className="w-16 h-16 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                      </svg>
+                    </div>
+                    <h2 className="mb-2">{t('map.noDataset')}</h2>
+                    <p className="text-gray-700 mb-6">
+                      {t('map.noDatasetDescription')}
+                    </p>
+                    <Button onClick={() => setDatasetSelectorOpen(true)}>
+                      {t('map.browseDatasets')}
+                    </Button>
+                    <div className="h-4" aria-hidden="true" />
+                  </div>
                 </div>
-                <h2 className="mb-2">{t('map.noDataset')}</h2>
-                <p className="text-gray-600 mb-6">
-                  {t('map.noDatasetDescription')}
-                </p>
-                <Button onClick={() => setDatasetSelectorOpen(true)}>
-                  {t('map.browseDatasets')}
-                </Button>
               </div>
             </div>
           )}
@@ -165,7 +196,7 @@ interface VariantSelectProps {
   disabled?: boolean;
   value?: string;
   onChange: (value: string) => void;
-  options: string[];
+  options: VariantOption[];
   label: string;
 }
 
@@ -177,12 +208,13 @@ function VariantSelect({ disabled, value, onChange, options, label }: VariantSel
       </SelectTrigger>
       <SelectContent>
         {options.map((opt) => (
-          <SelectItem key={opt} value={opt}>
-            {opt}
+          <SelectItem key={opt.id} value={opt.id}>
+            {opt.label}
           </SelectItem>
         ))}
       </SelectContent>
     </Select>
   );
 }
+
 

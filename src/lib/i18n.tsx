@@ -17,7 +17,7 @@ const translations: Translations = {
   },
   'welcome.subtitle': {
     en: 'District-level database of socio-economic data for interwar Poland (1918-1939)',
-    pl: 'Kompleksowa baza danych społeczno-ekonomicznych dla II RP na poziomie powiatowym (1918-1939)'
+    pl: 'Baza danych społeczno-ekonomicznych dla II RP na poziomie powiatowym (1918-1939)'
   },
   'welcome.exploreButton': {
     en: 'Explore Datasets',
@@ -30,8 +30,8 @@ const translations: Translations = {
   
   // Map Viewer
   'map.title': {
-    en: 'Interwar Poland Data Explorer',
-    pl: 'Eksplorator Danych Międzywojennej Polski'
+    en: 'Economic Geography of Interwar Poland',
+    pl: 'Geografia Ekonomiczna Międzywojennej Polski'
   },
   'map.home': {
     en: 'Home',
@@ -52,6 +52,76 @@ const translations: Translations = {
   'map.datasetVariant': {
     en: 'Dataset Variant',
     pl: 'Wariant Zbioru'
+  },
+  
+  // Dataset Info Panel (custom)
+  'info.tableHeader': {
+    en: 'Source Data Table Metadata',
+    pl: 'Metadane tabeli źródłowej'
+  },
+  'info.datasetHeader': {
+    en: 'Dataset Metadata',
+    pl: 'Metadane zbioru danych'
+  },
+  'info.datasetName': {
+    en: 'Dataset',
+    pl: 'Zbiór danych'
+  },
+  'info.completeness': {
+    en: 'Dataset completeness',
+    pl: 'Kompletność zbioru'
+  },
+  'info.countPresent': {
+    en: 'Districts with data',
+    pl: 'Dane dla powiatów'
+  },
+  'info.countMissing': {
+    en: 'Districts without data',
+    pl: 'Brak danych dla powiatów'
+  },
+  'info.completenessAfter': {
+    en: 'Dataset completeness after imputation',
+    pl: 'Kompletność zbioru po imputacji'
+  },
+  'info.countPresentAfter': {
+    en: 'Districts with data after imputation',
+    pl: 'Dane dla powiatów po imputacji'
+  },
+  'info.countMissingAfter': {
+    en: 'Districts without data after imputation',
+    pl: 'Brak danych dla powiatów po imputacji'
+  },
+  'info.source': {
+    en: 'Source',
+    pl: 'Źródło'
+  },
+  'info.pagePrefix': {
+    en: 'p. ',
+    pl: 'str. '
+  },
+  
+  'info.tableLabel': { en: 'table', pl: 'tabela' },
+  'info.description': {
+    en: 'Description',
+    pl: 'Opis'
+  },
+  'info.dataDate': {
+    en: 'Data for date',
+    pl: 'Dane dla daty'
+  },
+  'info.originalAdmin': {
+    en: 'Original administrative boundaries',
+    pl: 'Oryg. granice administracyjne'
+  },
+  'info.standardization': {
+    en: 'Dataset standardization (comments)',
+    pl: 'Standardyzacja zbioru (komentarz)'
+  },
+  
+  'info.unit': { en: 'Unit', pl: 'Jednostka' },
+  'info.none': {
+    en: 'None',
+    pl: 'Brak'
   },
   'map.noDataset': {
     en: 'No Dataset Selected',
@@ -132,8 +202,8 @@ const translations: Translations = {
     pl: 'Powrót do Strony Głównej'
   },
   'about.title': {
-    en: 'About the Interwar Poland District Data Explorer',
-    pl: 'O Eksploratorze Danych Powiatowych Międzywojennej Polski'
+    en: 'About the Economic Geography of Interwar Poland Database',
+    pl: 'O bazie danych Geografia Ekonomiczna Międzywojennej Polski'
   },
   
   // Language Selector
@@ -180,3 +250,4 @@ export function useLanguage() {
   }
   return context;
 }
+

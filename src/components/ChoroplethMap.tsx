@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import {
   ComposableMap,
   Geographies,
@@ -7,6 +7,7 @@ import {
 } from 'react-simple-maps';
 import { GeoJSONData, DistrictData } from '../types';
 import { Tooltip } from './ui/tooltip';
+import { geoMercator, geoCentroid } from 'd3-geo';
 
 interface ChoroplethMapProps {
   geoJsonData: GeoJSONData;
@@ -17,12 +18,15 @@ interface ChoroplethMapProps {
 export function ChoroplethMap({ geoJsonData, districtData, datasetName }: ChoroplethMapProps) {
   const [hoveredGeo, setHoveredGeo] = useState<string | null>(null);
   const [tooltipContent, setTooltipContent] = useState<{ name: string; value: number | undefined; x: number; y: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [size, setSize] = useState<{ width: number; height: number }>({ width: 800, height: 600 });
 
   // Create a lookup map for district values
-  const dataLookup = useMemo(() => 
-    new Map(districtData.map(d => [d.districtId, d.value])),
-    [districtData]
-  );
+  const dataLookup = useMemo(() => {
+    return new Map(
+      districtData.map((d) => [String(d.districtId ?? '').trim().toUpperCase(), d.value])
+    );
+  }, [districtData]);
 
   // Calculate min and max for color scaling
   const { minValue, maxValue } = useMemo(() => {
@@ -74,11 +78,12 @@ export function ChoroplethMap({ geoJsonData, districtData, datasetName }: Chorop
   }, [minValue, maxValue]);
 
   const handleMouseEnter = (geo: any, event: React.MouseEvent) => {
-    const districtId = geo.properties.District || geo.properties.id || geo.properties.ID || geo.properties.district_id;
-    const districtName = geo.properties.District || geo.properties.name || geo.properties.NAME || geo.properties.district_name || districtId;
-    const value = dataLookup.get(districtId);
+    const raw = geo.properties.District || geo.properties.id || geo.properties.ID || geo.properties.district_id;
+    const districtName = raw || geo.properties.name || geo.properties.NAME || geo.properties.district_name || raw;
+    const key = String(raw ?? '').trim().toUpperCase();
+    const value = dataLookup.get(key);
     
-    setHoveredGeo(districtId);
+    setHoveredGeo(key);
     setTooltipContent({
       name: districtName,
       value: value,
@@ -93,38 +98,73 @@ export function ChoroplethMap({ geoJsonData, districtData, datasetName }: Chorop
   };
 
   const handleMouseMove = (event: React.MouseEvent) => {
-    if (tooltipContent) {
-      setTooltipContent({
-        ...tooltipContent,
-        x: event.clientX,
-        y: event.clientY
-      });
-    }
+    setTooltipContent(prev => {
+      if (!prev) return prev;
+      return { ...prev, x: event.clientX, y: event.clientY };
+    });
   };
 
+  // Measure container and fit projection to GeoJSON
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      const rect = el.getBoundingClientRect();
+      setSize({ width: Math.max(1, rect.width), height: Math.max(1, rect.height) });
+    });
+    ro.observe(el);
+    // initial
+    const rect = el.getBoundingClientRect();
+    setSize({ width: Math.max(1, rect.width), height: Math.max(1, rect.height) });
+    return () => ro.disconnect();
+  }, []);
+
+  const projectionConfig = useMemo(() => {
+    const padding = 20;
+    const p = geoMercator();
+    let scale = 1200;
+    let center: [number, number] = [19, 52];
+    try {
+      if (geoJsonData && geoJsonData.features && geoJsonData.features.length > 0) {
+        // Fit projection to the full FeatureCollection within container bounds
+        // @ts-ignore - d3 accepts any GeoJSON object
+        p.fitExtent([[padding, padding], [Math.max(1, size.width - padding), Math.max(1, size.height - padding)]], geoJsonData as any);
+        scale = p.scale();
+        // Use geographic centroid for proper centering
+        // @ts-ignore
+        const c = geoCentroid(geoJsonData as any);
+        if (Array.isArray(c) && c.length === 2 && isFinite(c[0]) && isFinite(c[1])) {
+          center = c as [number, number];
+        }
+      }
+    } catch {}
+    return { scale, center };
+  }, [geoJsonData, size]);
+
   return (
-    <div className="w-full h-full relative bg-gray-50" onMouseMove={handleMouseMove}>
+    <div ref={containerRef} className="w-full h-full relative bg-gray-50" onMouseMove={handleMouseMove}>
       <ComposableMap
         projection="geoMercator"
-        projectionConfig={{
-          scale: 1000,
-          center: [19, 52]
-        }}
+        projectionConfig={projectionConfig}
+        width={size.width}
+        height={size.height}
         className="w-full h-full"
       >
         <ZoomableGroup>
           <Geographies geography={geoJsonData}>
             {({ geographies }) =>
               geographies.map((geo) => {
-                const districtId = geo.properties.District || geo.properties.id || geo.properties.ID || geo.properties.district_id;
-                const value = dataLookup.get(districtId);
-                const isHovered = hoveredGeo === districtId;
+                const raw = geo.properties.District || geo.properties.id || geo.properties.ID || geo.properties.district_id;
+                const key = String(raw ?? '').trim().toUpperCase();
+                const value = dataLookup.get(key);
+                const isHovered = hoveredGeo === key;
 
                 return (
                   <Geography
                     key={geo.rsmKey}
                     geography={geo}
                     onMouseEnter={(event) => handleMouseEnter(geo, event)}
+                    onMouseMove={(event) => handleMouseEnter(geo, event)}
                     onMouseLeave={handleMouseLeave}
                     style={{
                       default: {

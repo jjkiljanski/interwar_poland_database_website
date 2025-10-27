@@ -12,10 +12,14 @@ export function LanguageSelector() {
   const { language, setLanguage, t } = useLanguage();
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div className="fixed bottom-4 right-4 z-50 bg-transparent">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="icon" className="bg-white shadow-lg hover:bg-white/90">
+          <Button
+            variant="outline"
+            size="icon"
+            className="bg-transparent border-white/40 text-white hover:bg-white/10 hover:text-white"
+          >
             <Languages className="h-4 w-4" />
             <span className="sr-only">{t('language.select')}</span>
           </Button>

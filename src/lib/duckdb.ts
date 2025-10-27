@@ -80,6 +80,19 @@ export async function loadInitialParquet() {
   for (const src of sources) {
     try {
       await loadParquetFile(conn, src.table, src.path);
+      // Post-load normalization for specific tables
+      if (src.table === 'data_tables_metadata') {
+        // Convert DD.MM.YYYY text in `date` column to proper DATE type
+        try {
+          await conn.query(`ALTER TABLE data_tables_metadata ADD COLUMN IF NOT EXISTS __date_tmp DATE`);
+          await conn.query(`UPDATE data_tables_metadata SET __date_tmp = try_strptime(CAST(date AS VARCHAR), '%d.%m.%Y')`);
+          // If conversion produced any non-null values, replace the original column
+          await conn.query(`ALTER TABLE data_tables_metadata DROP COLUMN date`);
+          await conn.query(`ALTER TABLE data_tables_metadata RENAME COLUMN __date_tmp TO date`);
+        } catch (e) {
+          // If anything fails (e.g., already converted), continue without crashing
+        }
+      }
       const rows = await queryData(conn, `SELECT COUNT(*) as cnt FROM ${src.table}`);
       const rowCount = (rows?.[0]?.cnt as number) ?? 0;
       results.push({ table: src.table, loaded: true, rowCount });
@@ -203,6 +216,75 @@ export async function getDataTableIdsForCategoryEng(engFullPath: string) {
     ORDER BY id
   `);
   return rows.map((r: any) => r.id as string);
+}
+
+// For a given full English category path, return a mapping of data_table_id -> column_name
+export async function getVariantColumnsForCategoryEng(engFullPath: string) {
+  if (!conn) throw new Error('DuckDB not initialized');
+  const p = engFullPath.replace(/'/g, "''");
+  const rows = await queryData(conn, `
+    SELECT TRIM(data_table_id) AS data_table_id, TRIM(column_name) AS column_name
+    FROM columns_metadata
+    WHERE TRIM(category_eng) = '${p}'
+      AND data_table_id IS NOT NULL AND TRIM(data_table_id) <> ''
+      AND column_name IS NOT NULL AND TRIM(column_name) <> ''
+    ORDER BY data_table_id, column_name
+  `);
+  // Prefer the first column_name per data_table_id
+  const map = new Map<string, string>();
+  for (const r of rows as Array<{ data_table_id: string; column_name: string }>) {
+    if (!map.has(r.data_table_id)) map.set(r.data_table_id, r.column_name);
+  }
+  return map; // Map<data_table_id, column_name>
+}
+
+export async function getDistrictDataForColumnAndTable(columnName: string, dataTableId: string) {
+  if (!conn) throw new Error('DuckDB not initialized');
+  const valueCol = await getDistrictDatasetsValueColumn();
+  const c = columnName.replace(/'/g, "''");
+  const d = dataTableId.replace(/'/g, "''");
+  const rows = await queryData(conn, `
+    SELECT TRIM(District) AS District, "${valueCol}" AS value
+    FROM district_datasets
+    WHERE TRIM(variable_name) = '${c}' AND TRIM(data_table_id) = '${d}'
+  `);
+  return rows as Array<{ District: string; value: number | null }>;
+}
+
+export async function getDataTableMetadata(dataTableId: string) {
+  if (!conn) throw new Error('DuckDB not initialized');
+  const d = dataTableId.replace(/'/g, "''");
+  const rows = await queryData(conn, `
+    SELECT * FROM data_tables_metadata
+    WHERE TRIM(data_table_id) = '${d}'
+    LIMIT 1
+  `);
+  return (rows?.[0] ?? {}) as Record<string, any>;
+}
+
+export async function getColumnMetadata(columnName: string, dataTableId: string) {
+  if (!conn) throw new Error('DuckDB not initialized');
+  const c = columnName.replace(/'/g, "''");
+  const d = dataTableId.replace(/'/g, "''");
+  const rows = await queryData(conn, `
+    SELECT * FROM columns_metadata
+    WHERE TRIM(column_name)='${c}' AND TRIM(data_table_id)='${d}'
+    LIMIT 1
+  `);
+  return (rows?.[0] ?? {}) as Record<string, any>;
+}
+
+// Fetch dates for given data_table_id list
+export async function getDataTableDatesForIds(ids: string[]) {
+  if (!conn) throw new Error('DuckDB not initialized');
+  if (ids.length === 0) return [] as Array<{ id: string; date: any }>;
+  const escaped = ids.map((id) => `'${id.replace(/'/g, "''")}'`).join(',');
+  const rows = await queryData(conn, `
+    SELECT TRIM(data_table_id) AS id, date
+    FROM data_tables_metadata
+    WHERE TRIM(data_table_id) IN (${escaped})
+  `);
+  return rows as Array<{ id: string; date: any }>;
 }
 
 export { db, conn };
