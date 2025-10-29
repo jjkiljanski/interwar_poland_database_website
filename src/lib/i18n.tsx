@@ -210,14 +210,6 @@ const translations: Translations = {
   'language.select': {
     en: 'Language',
     pl: 'Język'
-  },
-  'language.en': {
-    en: 'English',
-    pl: 'Angielski'
-  },
-  'language.pl': {
-    en: 'Polish',
-    pl: 'Polski'
   }
 };
 
