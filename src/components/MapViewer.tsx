@@ -21,7 +21,7 @@ interface MapViewerProps {
 }
 
 export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoadVariant, onDatasetLoaded }: MapViewerProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [selectedDatasetId, setSelectedDatasetId] = useState<string | undefined>();
   const [dataTableMeta, setDataTableMeta] = useState<Record<string, any> | undefined>();
   const [columnMeta, setColumnMeta] = useState<Record<string, any> | undefined>();
@@ -71,6 +71,69 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoad
     }
   };
 
+  // ----- CSV Download helpers bound to current selection -----
+  const downloadCurrentVariantCSV = () => {
+    if (!selectedDatasetId || !selectedVariant || currentData.length === 0) return;
+    const districtHeader = language === 'pl' ? 'Powiat' : 'District';
+    const valueHeader = (columnMeta as any)?.column_name || (variants.find(v => v.id === selectedVariant)?.label ?? selectedVariant);
+    const header = [districtHeader, valueHeader];
+    const lines = [header.map(csvEscape).join(',')];
+    for (const row of currentData) {
+      const vals = [row.districtName, row.value];
+      lines.push(vals.map(csvEscape).join(','));
+    }
+    const datasetLabel = datasetPath.length ? formatSafeFilename(datasetPath) : 'dataset';
+    const variantLabel = formatSafeFilename([variants.find(v => v.id === selectedVariant)?.label ?? selectedVariant]);
+    const filename = `${datasetLabel}__${variantLabel}.csv`;
+    triggerDownload(filename, lines.join('\n'));
+  };
+
+  const downloadAllVariantsCSV = async () => {
+    if (!selectedDatasetId || variants.length === 0) return;
+    try {
+      const districtHeader = language === 'pl' ? 'Powiat' : 'District';
+      // Determine column for each variant
+      const engFullPath = await getEnglishFullPathFromDatasetId(selectedDatasetId, language as 'en' | 'pl');
+      const variantMap = await getVariantColumnsForCategoryEng(engFullPath);
+      const orderedVariantIds = variants.map(v => v.id);
+
+      // Collect data for each variant
+      const districtSet = new Set<string>();
+      const byVariant: Record<string, Map<string, number | null>> = {};
+      for (const vid of orderedVariantIds) {
+        const col = variantMap.get(vid);
+        if (!col) continue;
+        const rows = await getDistrictDataForColumnAndTable(col, vid);
+        const m = new Map<string, number | null>();
+        for (const r of rows as any[]) {
+          const name = String(r.District ?? '').trim();
+          districtSet.add(name);
+          m.set(name, typeof r.value === 'number' ? r.value : (r.value == null ? null : Number(r.value)));
+        }
+        byVariant[vid] = m;
+      }
+
+      // Build CSV
+      const header = [districtHeader, ...orderedVariantIds.map(id => variants.find(v => v.id === id)?.label ?? id)];
+      const lines = [header.map(csvEscape).join(',')];
+      const districts = Array.from(districtSet.values()).sort((a, b) => a.localeCompare(b));
+      for (const dname of districts) {
+        const row: (string | number | null)[] = [dname];
+        for (const vid of orderedVariantIds) {
+          const mv = byVariant[vid];
+          row.push(mv ? (mv.get(dname) ?? null) : null);
+        }
+        lines.push(row.map(csvEscape).join(','));
+      }
+
+      const datasetLabel = datasetPath.length ? formatSafeFilename(datasetPath) : 'dataset';
+      const filename = `${datasetLabel}__all_variants.csv`;
+      triggerDownload(filename, lines.join('\n'));
+    } catch (e) {
+      console.error('Failed to download all variants CSV:', e);
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col">
       {/* Header */}
@@ -92,16 +155,19 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoad
                 {t('map.selectDataset')}
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-full sm:w-96 p-0">
+            {/* Ensure the left sheet content hosts its own internal scroll */}
+            <SheetContent side="left" className="w-full sm:w-96 p-0 overflow-hidden">
               <SheetHeader className="sr-only">
                 <SheetTitle>{t('selector.title')}</SheetTitle>
                 <SheetDescription>{t('selector.description')}</SheetDescription>
               </SheetHeader>
-              <DatasetSelector
-                treeData={treeData}
-                onSelectDataset={handleSelectDataset}
-                selectedDatasetId={selectedDatasetId}
-              />
+              <div className="h-full min-h-0">
+                <DatasetSelector
+                  treeData={treeData}
+                  onSelectDataset={handleSelectDataset}
+                  selectedDatasetId={selectedDatasetId}
+                />
+              </div>
             </SheetContent>
           </Sheet>
           
@@ -127,13 +193,36 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoad
                 {t('map.datasetInfo')}
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-full sm:w-96 p-0 overflow-auto">
+            <SheetContent side="right" className="w-full sm:w-96 p-0 overflow-hidden">
               <SheetHeader className="sr-only">
                 <SheetTitle>{t('metadata.title')}</SheetTitle>
                 <SheetDescription>View metadata for the selected dataset</SheetDescription>
               </SheetHeader>
               {(dataTableMeta || columnMeta) && (
-                <VariantInfoPanel dataTableMeta={dataTableMeta} columnMeta={columnMeta} />
+                <div className="min-h-full h-full flex flex-col min-w-0">
+                  <div className="flex-1 overflow-auto p-0 min-h-0">
+                    <VariantInfoPanel dataTableMeta={dataTableMeta} columnMeta={columnMeta} />
+                  </div>
+                  {/* Sticky footer with download buttons */}
+                  <div className="sticky bottom-0 left-0 right-0 p-3 border-t bg-white flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!selectedDatasetId || !selectedVariant || currentData.length === 0}
+                      onClick={() => downloadCurrentVariantCSV()}
+                    >
+                      Download dataset (CSV)
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      disabled={!selectedDatasetId || variants.length === 0}
+                      onClick={() => downloadAllVariantsCSV()}
+                    >
+                      Download all variants (CSV)
+                    </Button>
+                  </div>
+                </div>
               )}
             </SheetContent>
           </Sheet>
@@ -216,5 +305,37 @@ function VariantSelect({ disabled, value, onChange, options, label }: VariantSel
     </Select>
   );
 }
+
+// CSV helpers and download actions
+import { getEnglishFullPathFromDatasetId, getVariantColumnsForCategoryEng, getDistrictDataForColumnAndTable } from '../lib/duckdb';
+
+function csvEscape(value: string | number | null | undefined): string {
+  const s = value == null ? '' : String(value);
+  if (/[",\n]/.test(s)) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+function triggerDownload(filename: string, content: string, mime = 'text/csv;charset=utf-8') {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// Note: these are methods on the component scope, so they can use state
+function formatSafeFilename(parts: string[]) {
+  const raw = parts.join(' - ');
+  return raw.replace(/[^A-Za-z0-9_\- ]+/g, '_').replace(/\s+/g, '_').slice(0, 120);
+}
+
+// Attach methods to component via declaration merging hack is not ideal; instead,
+// define them inside the component so they have access to state.
 
 

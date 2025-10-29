@@ -8,7 +8,8 @@ import {
 } from './ui/accordion';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { ScrollArea } from './ui/scroll-area';
+// Native scroll is used instead of the custom ScrollArea here to ensure
+// a single scrollbar appears along the sheet edge when content overflows.
 import { Search, ChevronRight, Database } from 'lucide-react';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from './ui/breadcrumb';
 import { useLanguage } from '../lib/i18n';
@@ -60,7 +61,7 @@ export function DatasetSelector({ treeData, onSelectDataset, selectedDatasetId }
         <Button
           key={node.id}
           variant={isSelected ? 'secondary' : 'ghost'}
-          className="w-full justify-start text-left mb-1"
+          className="w-full justify-start text-left mb-1 min-w-0"
           onClick={() => handleDatasetClick(node, path)}
         >
           <Database className="mr-2 h-4 w-4 flex-shrink-0" />
@@ -73,9 +74,9 @@ export function DatasetSelector({ treeData, onSelectDataset, selectedDatasetId }
       return (
         <AccordionItem key={node.id} value={node.id} className="border-none">
           <AccordionTrigger className="py-2 hover:no-underline hover:bg-gray-100 px-2 rounded">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0 w-full">
               <ChevronRight className="h-4 w-4" />
-              <span>{node.name}</span>
+              <span className="truncate">{node.name}</span>
             </div>
           </AccordionTrigger>
           <AccordionContent className="pl-4 pt-1">
@@ -91,7 +92,7 @@ export function DatasetSelector({ treeData, onSelectDataset, selectedDatasetId }
   const filteredTree = filterTree(treeData, searchQuery);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       <div className="p-4 border-b">
         <h2 className="mb-4">{t('selector.title')}</h2>
         <div className="relative">
@@ -124,7 +125,7 @@ export function DatasetSelector({ treeData, onSelectDataset, selectedDatasetId }
         </div>
       )}
 
-      <ScrollArea className="flex-1">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="p-4">
           {filteredTree.length > 0 ? (
             <Accordion type="multiple" className="w-full">
@@ -136,7 +137,7 @@ export function DatasetSelector({ treeData, onSelectDataset, selectedDatasetId }
             </div>
           )}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
