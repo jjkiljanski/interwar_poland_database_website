@@ -8,11 +8,12 @@ import {
 } from './ui/dropdown-menu';
 import { useLanguage } from '../lib/i18n';
 
-export function LanguageSelector() {
+export function LanguageSelector({ positionClass }: { positionClass?: string }) {
   const { language, setLanguage, t } = useLanguage();
+  const wrapperClass = positionClass ?? 'fixed top-4 right-4 z-50 bg-transparent';
 
   return (
-    <div className="fixed top-4 right-4 z-50 bg-transparent">
+    <div className={wrapperClass}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button

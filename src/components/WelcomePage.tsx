@@ -1,5 +1,6 @@
 import { Button } from './ui/button';
 import { useLanguage } from '../lib/i18n';
+import { LanguageSelector } from './LanguageSelector';
 
 interface WelcomePageProps {
   onExploreData: () => void;
@@ -21,6 +22,8 @@ export function WelcomePage({ onExploreData, onAbout, heroImageUrl }: WelcomePag
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 to-black/70" />
         <div className="absolute inset-0 flex items-center justify-center">
+          {/* Language selector pinned to top-right of the landing overlay */}
+          <LanguageSelector positionClass="absolute top-4 right-4 z-20" />
           <div className="text-center text-white px-4 max-w-4xl">
             <h1 className="mb-4">{t('welcome.title')}</h1>
             <p className="text-xl mb-8 opacity-90">

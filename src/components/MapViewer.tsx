@@ -8,6 +8,7 @@ import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
 import { ArrowLeft, Menu, Info } from 'lucide-react';
 import { useLanguage } from '../lib/i18n';
+import { LanguageSelector } from './LanguageSelector';
 
 type VariantOption = { id: string; label: string };
 
@@ -146,7 +147,7 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoad
           <div className="border-l h-6" />
           <h1 className="text-xl">{t('map.title')}</h1>
         </div>
-        
+        {/* Top-right controls inside header */}
         <div className="flex items-center gap-2">
           <Sheet open={datasetSelectorOpen} onOpenChange={setDatasetSelectorOpen}>
             <SheetTrigger asChild>
@@ -155,7 +156,6 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoad
                 {t('map.selectDataset')}
               </Button>
             </SheetTrigger>
-            {/* Ensure the left sheet content hosts its own internal scroll */}
             <SheetContent side="left" className="w-full sm:w-96 p-0 overflow-hidden">
               <SheetHeader className="sr-only">
                 <SheetTitle>{t('selector.title')}</SheetTitle>
@@ -170,17 +170,14 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoad
               </div>
             </SheetContent>
           </Sheet>
-          
-          {/* Dataset Variant Selector */}
-          <div>
-            <VariantSelect
-              disabled={!selectedDatasetId || variants.length === 0}
-              value={selectedVariant}
-              onChange={handleVariantChange}
-              options={variants}
-              label={t('map.datasetVariant')}
-            />
-          </div>
+
+          <VariantSelect
+            disabled={!selectedDatasetId || variants.length === 0}
+            value={selectedVariant}
+            onChange={handleVariantChange}
+            options={variants}
+            label={t('map.datasetVariant')}
+          />
 
           <Sheet open={metadataSheetOpen} onOpenChange={setMetadataSheetOpen}>
             <SheetTrigger asChild>
@@ -203,7 +200,6 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoad
                   <div className="flex-1 overflow-auto p-0 min-h-0">
                     <VariantInfoPanel dataTableMeta={dataTableMeta} columnMeta={columnMeta} />
                   </div>
-                  {/* Sticky footer with download buttons */}
                   <div className="sticky bottom-0 left-0 right-0 p-3 border-t bg-white flex justify-end gap-2">
                     <Button
                       variant="outline"
@@ -243,13 +239,17 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoad
           )}
           
           {currentData.length > 0 ? (
-            <ChoroplethMap
-              geoJsonData={geoJsonData}
-              districtData={currentData}
-              datasetName={(columnMeta as any)?.column_name || selectedVariant}
-            />
+            <>
+              <ChoroplethMap
+                geoJsonData={geoJsonData}
+                districtData={currentData}
+                datasetName={(columnMeta as any)?.column_name || selectedVariant}
+              />
+              {/* Language selector pinned to top-right when map is displayed */}
+              <LanguageSelector positionClass="absolute top-4 right-4 z-20" />
+            </>
           ) : (
-            <div className="h-full flex items-center justify-center bg-transparent">
+            <div className="h-full flex items-center justify-center bg-transparent relative">
               <div className="max-w-md w-full px-4">
                 <div className="rounded-xl border border-border bg-white text-foreground shadow-xl">
                   <div className="p-6 text-center">
@@ -270,6 +270,8 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoad
                   </div>
                 </div>
               </div>
+              {/* Language selector pinned to top-right of this empty-state container */}
+              <LanguageSelector positionClass="absolute top-4 right-4 z-20" />
             </div>
           )}
         </div>

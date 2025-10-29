@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { ArrowLeft } from 'lucide-react';
 import { useLanguage } from '../lib/i18n';
 import { aboutContent } from '@/content/about';
+import { LanguageSelector } from './LanguageSelector';
 
 interface AboutPageProps {
   onBack: () => void;
@@ -14,6 +15,8 @@ export function AboutPage({ onBack }: AboutPageProps) {
 
   return (
     <div className="min-h-screen bg-transparent py-8 px-4">
+      {/* Language selector pinned to top-right */}
+      <LanguageSelector />
       <div className="max-w-4xl mx-auto">
         <Button onClick={onBack} variant="ghost" className="mb-6">
           <ArrowLeft className="mr-2 h-4 w-4" />

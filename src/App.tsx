@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { WelcomePage } from './components/WelcomePage';
 import { AboutPage } from './components/AboutPage';
 import { MapViewer } from './components/MapViewer';
-import { LanguageSelector } from './components/LanguageSelector';
 import { useLanguage } from './lib/i18n';
 import { initializeDuckDB, loadInitialParquet, getCategoryPaths, getEnglishFullPathFromDatasetId, getVariantColumnsForCategoryEng, getDistrictDataForColumnAndTable, getDataTableMetadata, getColumnMetadata, getDataTableDatesForIds } from './lib/duckdb';
 import { DatasetTreeNode, DatasetMetadata, GeoJSONData, DistrictData } from './types';
@@ -373,12 +372,10 @@ export default function App() {
           />
         )}
 
-        <LanguageSelector />
         <Toaster />
       </div>
 
-      <LanguageSelector />
-      <Toaster />
+      
     </>
   );
 }
