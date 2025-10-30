@@ -16,14 +16,15 @@ interface MapViewerProps {
   onBack: () => void;
   treeData: DatasetTreeNode[];
   geoJsonData: GeoJSONData;
+  boundaryGeoJson?: GeoJSONData;
   onLoadDataset: (datasetId: string) => Promise<{ data: DistrictData[], variants: VariantOption[], dataTableMeta: Record<string, any>, columnMeta: Record<string, any> }>;
   onLoadVariant: (datasetId: string, variantId: string) => Promise<{ data: DistrictData[], dataTableMeta: Record<string, any>, columnMeta: Record<string, any> }>;
   onDatasetLoaded: (hasData: boolean) => void;
-  selectedAdmLevel: 'District' | 'Region';
-  onAdmLevelChange: (level: 'District' | 'Region') => void;
+  selectedAdmLevel: 'District' | 'Region' | 'City';
+  onAdmLevelChange: (level: 'District' | 'Region' | 'City') => void;
 }
 
-export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoadVariant, onDatasetLoaded, selectedAdmLevel, onAdmLevelChange }: MapViewerProps) {
+export function MapViewer({ onBack, treeData, geoJsonData, boundaryGeoJson, onLoadDataset, onLoadVariant, onDatasetLoaded, selectedAdmLevel, onAdmLevelChange }: MapViewerProps) {
   const { t, language } = useLanguage();
   const [selectedDatasetId, setSelectedDatasetId] = useState<string | undefined>();
   const [dataTableMeta, setDataTableMeta] = useState<Record<string, any> | undefined>();
@@ -79,7 +80,9 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoad
     if (!selectedDatasetId || !selectedVariant || currentData.length === 0) return;
     const districtHeader = selectedAdmLevel === 'District'
       ? (language === 'pl' ? 'Powiat' : 'District')
-      : (language === 'pl' ? 'Województwo' : 'Region');
+      : (selectedAdmLevel === 'Region'
+          ? (language === 'pl' ? 'Województwo' : 'Region')
+          : (language === 'pl' ? 'Miasto' : 'City'));
     const valueHeader = (columnMeta as any)?.column_name || (variants.find(v => v.id === selectedVariant)?.label ?? selectedVariant);
     const header = [districtHeader, valueHeader];
     const lines = [header.map(csvEscape).join(',')];
@@ -98,7 +101,9 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoad
     try {
       const districtHeader = selectedAdmLevel === 'District'
         ? (language === 'pl' ? 'Powiat' : 'District')
-        : (language === 'pl' ? 'Województwo' : 'Region');
+        : (selectedAdmLevel === 'Region'
+            ? (language === 'pl' ? 'Województwo' : 'Region')
+            : (language === 'pl' ? 'Miasto' : 'City'));
       // Determine column for each variant
       const engFullPath = await getEnglishFullPathFromDatasetId(selectedDatasetId, language as 'en' | 'pl');
       const variantMap = await getVariantColumnsForCategoryEng(engFullPath);
@@ -115,7 +120,7 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoad
           : await getRegionDataForColumnAndTable(col, vid);
         const m = new Map<string, number | null>();
         for (const r of rows as any[]) {
-          const name = String((r.District ?? r.Region) ?? '').trim();
+          const name = String((r.District ?? r.Region ?? r.City) ?? '').trim();
           districtSet.add(name);
           m.set(name, typeof r.value === 'number' ? r.value : (r.value == null ? null : Number(r.value)));
         }
@@ -160,10 +165,16 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoad
           {/* Administrative level selector */}
           <AdminLevelSelect
             value={selectedAdmLevel}
-            onChange={(val) => { onAdmLevelChange(val); setDatasetSelectorOpen(true); }}
+            onChange={(val) => { onAdmLevelChange(val); }}
           />
 
           <Sheet open={datasetSelectorOpen} onOpenChange={setDatasetSelectorOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Menu className="h-4 w-4 mr-2" />
+                {t('map.selectDataset')}
+              </Button>
+            </SheetTrigger>
             <SheetContent side="left" className="w-full sm:w-96 p-0 overflow-hidden">
               <SheetHeader className="sr-only">
                 <SheetTitle>{t('selector.title')}</SheetTitle>
@@ -250,9 +261,10 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoad
             <>
               <ChoroplethMap
                 geoJsonData={geoJsonData}
+                boundaryGeoJson={boundaryGeoJson}
                 districtData={currentData}
                 datasetName={(columnMeta as any)?.column_name || selectedVariant}
-                idProperty={selectedAdmLevel === 'District' ? 'District' : 'Region'}
+                idProperty={selectedAdmLevel === 'District' ? 'District' : (selectedAdmLevel === 'Region' ? 'Region' : 'City')}
               />
               {/* Language selector pinned to top-right when map is displayed */}
               <LanguageSelector positionClass="absolute top-4 right-4 z-20" />
@@ -318,18 +330,20 @@ function VariantSelect({ disabled, value, onChange, options, label }: VariantSel
 }
 
 // Admin level select component
-function AdminLevelSelect({ value, onChange }: { value: 'District' | 'Region'; onChange: (v: 'District' | 'Region') => void }) {
+function AdminLevelSelect({ value, onChange }: { value: 'District' | 'Region' | 'City'; onChange: (v: 'District' | 'Region' | 'City') => void }) {
   const { language } = useLanguage();
   const labelDistrict = language === 'pl' ? 'Powiaty' : 'Districts';
   const labelRegion = language === 'pl' ? 'Województwa' : 'Voivodships';
+  const labelCity = language === 'pl' ? 'Miasta' : 'Cities';
   return (
-    <Select value={value} onValueChange={(v) => onChange(v as 'District' | 'Region')}>
+    <Select value={value} onValueChange={(v) => onChange(v as 'District' | 'Region' | 'City')}>
       <SelectTrigger className="h-9 w-44 text-sm">
         <SelectValue placeholder={labelDistrict} />
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="District">{labelDistrict}</SelectItem>
         <SelectItem value="Region">{labelRegion}</SelectItem>
+        <SelectItem value="City">{labelCity}</SelectItem>
       </SelectContent>
     </Select>
   );

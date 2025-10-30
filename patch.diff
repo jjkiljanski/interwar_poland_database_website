@@ -1,0 +1,64 @@
+*** Begin Patch
+*** Update File: src/lib/duckdb.ts
+@@
+-export async function getCategoryPaths(language: 'en' | 'pl', admLevel: 'District' | 'Region') {
++export async function getCategoryPaths(language: 'en' | 'pl', admLevel: 'District' | 'Region' | 'City') {
+@@
+   const rows = await queryData(conn, `
+     SELECT DISTINCT TRIM(cm.) AS path
+     FROM columns_metadata cm
+     JOIN data_tables_metadata dtm
+       ON TRIM(cm.data_table_id) = TRIM(dtm.data_table_id)
+     WHERE cm. IS NOT NULL AND TRIM(cm.) <> ''
+       AND TRIM(COALESCE(dtm.adm_level, '')) = ''
+     ORDER BY path
+   `
+   );
+   return rows.map((r: any) => r.path as string);
+ }
+@@
+ export async function getRegionDataForColumnAndTable(columnName: string, dataTableId: string) {
+@@
+ }
++
++// City-level utilities analogous to district/region helpers
++export async function getCityDatasetsValueColumn() {
++  if (!conn) throw new Error('DuckDB not initialized');
++  const cols = await queryData(conn, `
++    SELECT column_name, data_type
++    FROM information_schema.columns
++    WHERE table_name = 'city_datasets'
++    ORDER BY ordinal_position
++  `
++  );
++  const valueCol = cols.find((c: any) => (c.column_name as string).toLowerCase() === 'value');
++  if (valueCol) return valueCol.column_name as string;
++  const numeric = cols.find((c: any) => {
++    const name = (c.column_name as string).toLowerCase();
++    const dt = (c.data_type as string).toLowerCase();
++    if (name === 'city' || name === 'variable_name') return false;
++    return dt.includes('int') || dt.includes('double') || dt.includes('decimal') || dt.includes('real') || dt.includes('numeric');
++  });
++  if (!numeric) throw new Error('Could not determine value column in city_datasets');
++  return numeric.column_name as string;
++}
++
++export async function getCityDataForColumnAndTable(columnName: string, dataTableId: string) {
++  if (!conn) throw new Error('DuckDB not initialized');
++  const valueCol = await getCityDatasetsValueColumn();
++  const c = columnName.replace(/'/g, 
+
+);
++  const d = dataTableId.replace(/'/g, 
+
+);
++  const rows = await queryData(conn, `
++    SELECT TRIM(City) AS City, 
+ AS value
++    FROM city_datasets
++    WHERE TRIM(variable_name) = '' AND TRIM(data_table_id) = ''
++  `
++  );
++  return rows as Array<{ City: string; value: number | null }>;
++}
+*** End Patch
