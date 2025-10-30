@@ -13,9 +13,10 @@ interface ChoroplethMapProps {
   geoJsonData: GeoJSONData;
   districtData: DistrictData[];
   datasetName?: string;
+  idProperty?: 'District' | 'Region';
 }
 
-export function ChoroplethMap({ geoJsonData, districtData, datasetName }: ChoroplethMapProps) {
+export function ChoroplethMap({ geoJsonData, districtData, datasetName, idProperty = 'District' }: ChoroplethMapProps) {
   const [hoveredGeo, setHoveredGeo] = useState<string | null>(null);
   const [tooltipContent, setTooltipContent] = useState<{ name: string; value: number | undefined; x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -78,7 +79,7 @@ export function ChoroplethMap({ geoJsonData, districtData, datasetName }: Chorop
   }, [minValue, maxValue]);
 
   const handleMouseEnter = (geo: any, event: React.MouseEvent) => {
-    const raw = geo.properties.District || geo.properties.id || geo.properties.ID || geo.properties.district_id;
+    const raw = geo.properties?.[idProperty] || geo.properties.id || geo.properties.ID || geo.properties.district_id || geo.properties.region_id;
     const districtName = raw || geo.properties.name || geo.properties.NAME || geo.properties.district_name || raw;
     const key = String(raw ?? '').trim().toUpperCase();
     const value = dataLookup.get(key);
@@ -154,7 +155,7 @@ export function ChoroplethMap({ geoJsonData, districtData, datasetName }: Chorop
           <Geographies geography={geoJsonData}>
             {({ geographies }) =>
               geographies.map((geo) => {
-                const raw = geo.properties.District || geo.properties.id || geo.properties.ID || geo.properties.district_id;
+                const raw = geo.properties?.[idProperty] || geo.properties.id || geo.properties.ID || geo.properties.district_id || geo.properties.region_id;
                 const key = String(raw ?? '').trim().toUpperCase();
                 const value = dataLookup.get(key);
                 const isHovered = hoveredGeo === key;

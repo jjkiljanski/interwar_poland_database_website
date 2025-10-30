@@ -3,7 +3,7 @@ import { WelcomePage } from './components/WelcomePage';
 import { AboutPage } from './components/AboutPage';
 import { MapViewer } from './components/MapViewer';
 import { useLanguage } from './lib/i18n';
-import { initializeDuckDB, loadInitialParquet, getCategoryPaths, getEnglishFullPathFromDatasetId, getVariantColumnsForCategoryEng, getDistrictDataForColumnAndTable, getDataTableMetadata, getColumnMetadata, getDataTableDatesForIds } from './lib/duckdb';
+import { initializeDuckDB, loadInitialParquet, getCategoryPaths, getEnglishFullPathFromDatasetId, getVariantColumnsForCategoryEng, getDistrictDataForColumnAndTable, getRegionDataForColumnAndTable, getDataTableMetadata, getColumnMetadata, getDataTableDatesForIds } from './lib/duckdb';
 import { DatasetTreeNode, DatasetMetadata, GeoJSONData, DistrictData } from './types';
 import { Toaster } from './components/ui/sonner';
 import { toast } from 'sonner@2.0.3';
@@ -141,6 +141,7 @@ export default function App() {
   const [geoJsonData, setGeoJsonData] = useState<GeoJSONData>({ type: 'FeatureCollection', features: [] });
   const { language } = useLanguage();
   const [hasDatasetData, setHasDatasetData] = useState(false);
+  const [chosenAdmLevel, setChosenAdmLevel] = useState<'District' | 'Region'>('District');
 
   useEffect(() => {
     // Initialize DuckDB on app load
@@ -178,7 +179,7 @@ export default function App() {
     const loadTree = async () => {
       if (!dbInitialized) return;
       try {
-        const paths = await getCategoryPaths(language);
+        const paths = await getCategoryPaths(language, chosenAdmLevel);
         const tree = buildTreeFromPaths(paths);
         setTreeData(tree);
       } catch (err) {
@@ -187,7 +188,7 @@ export default function App() {
       }
     };
     loadTree();
-  }, [dbInitialized, language]);
+  }, [dbInitialized, language, chosenAdmLevel]);
 
   useEffect(() => {
     // Use local hero image; BASE_URL works in dev and on GitHub Pages
@@ -195,14 +196,15 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Load GeoJSON from public path using BASE_URL
-    fetch(`${import.meta.env.BASE_URL}data/geo/districts.geojson`)
+    // Load GeoJSON depending on selected administrative level
+    const file = chosenAdmLevel === 'District' ? 'districts.geojson' : 'regions.geojson';
+    fetch(`${import.meta.env.BASE_URL}data/geo/${file}`)
       .then(r => r.json())
       .then((gj) => setGeoJsonData(gj as GeoJSONData))
       .catch((err) => {
         console.error('Failed to load GeoJSON', err);
       });
-  }, []);
+  }, [chosenAdmLevel]);
 
   const handleLoadDataset = async (datasetId: string): Promise<{ data: DistrictData[], metadata: DatasetMetadata }> => {
     // This is where you would query DuckDB for the actual data
@@ -300,10 +302,12 @@ export default function App() {
     let data: DistrictData[] = [];
     if (firstVariant) {
       const columnName = variantMap.get(firstVariant)!;
-      // Load district values using column_name + data_table_id
-    const rows = await getDistrictDataForColumnAndTable(columnName, firstVariant);
+      // Load values using column_name + data_table_id
+      const rows = chosenAdmLevel === 'District'
+        ? await getDistrictDataForColumnAndTable(columnName, firstVariant)
+        : await getRegionDataForColumnAndTable(columnName, firstVariant);
       data = rows.map((r: any) => {
-        const name = String(r.District ?? '').trim();
+        const name = String((r.District ?? r.Region) ?? '').trim();
         const id = name.toUpperCase();
         return {
           districtId: id,
@@ -353,9 +357,11 @@ export default function App() {
               const variantMap = await getVariantColumnsForCategoryEng(engFullPath);
               const columnName = variantMap.get(variantId);
               if (!columnName) return { data: [], dataTableMeta: {}, columnMeta: {} };
-              const rows = await getDistrictDataForColumnAndTable(columnName, variantId);
+              const rows = chosenAdmLevel === 'District'
+                ? await getDistrictDataForColumnAndTable(columnName, variantId)
+                : await getRegionDataForColumnAndTable(columnName, variantId);
               const data: DistrictData[] = rows.map((r: any) => {
-                const name = String(r.District ?? '').trim();
+                const name = String((r.District ?? r.Region) ?? '').trim();
                 const id = name.toUpperCase();
                 return {
                   districtId: id,
@@ -369,6 +375,8 @@ export default function App() {
               return { data, dataTableMeta, columnMeta };
             }}
             onDatasetLoaded={(hasData: boolean) => setHasDatasetData(hasData)}
+            selectedAdmLevel={chosenAdmLevel}
+            onAdmLevelChange={setChosenAdmLevel}
           />
         )}
 

@@ -19,9 +19,11 @@ interface MapViewerProps {
   onLoadDataset: (datasetId: string) => Promise<{ data: DistrictData[], variants: VariantOption[], dataTableMeta: Record<string, any>, columnMeta: Record<string, any> }>;
   onLoadVariant: (datasetId: string, variantId: string) => Promise<{ data: DistrictData[], dataTableMeta: Record<string, any>, columnMeta: Record<string, any> }>;
   onDatasetLoaded: (hasData: boolean) => void;
+  selectedAdmLevel: 'District' | 'Region';
+  onAdmLevelChange: (level: 'District' | 'Region') => void;
 }
 
-export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoadVariant, onDatasetLoaded }: MapViewerProps) {
+export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoadVariant, onDatasetLoaded, selectedAdmLevel, onAdmLevelChange }: MapViewerProps) {
   const { t, language } = useLanguage();
   const [selectedDatasetId, setSelectedDatasetId] = useState<string | undefined>();
   const [dataTableMeta, setDataTableMeta] = useState<Record<string, any> | undefined>();
@@ -75,7 +77,9 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoad
   // ----- CSV Download helpers bound to current selection -----
   const downloadCurrentVariantCSV = () => {
     if (!selectedDatasetId || !selectedVariant || currentData.length === 0) return;
-    const districtHeader = language === 'pl' ? 'Powiat' : 'District';
+    const districtHeader = selectedAdmLevel === 'District'
+      ? (language === 'pl' ? 'Powiat' : 'District')
+      : (language === 'pl' ? 'Województwo' : 'Region');
     const valueHeader = (columnMeta as any)?.column_name || (variants.find(v => v.id === selectedVariant)?.label ?? selectedVariant);
     const header = [districtHeader, valueHeader];
     const lines = [header.map(csvEscape).join(',')];
@@ -92,7 +96,9 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoad
   const downloadAllVariantsCSV = async () => {
     if (!selectedDatasetId || variants.length === 0) return;
     try {
-      const districtHeader = language === 'pl' ? 'Powiat' : 'District';
+      const districtHeader = selectedAdmLevel === 'District'
+        ? (language === 'pl' ? 'Powiat' : 'District')
+        : (language === 'pl' ? 'Województwo' : 'Region');
       // Determine column for each variant
       const engFullPath = await getEnglishFullPathFromDatasetId(selectedDatasetId, language as 'en' | 'pl');
       const variantMap = await getVariantColumnsForCategoryEng(engFullPath);
@@ -104,10 +110,12 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoad
       for (const vid of orderedVariantIds) {
         const col = variantMap.get(vid);
         if (!col) continue;
-        const rows = await getDistrictDataForColumnAndTable(col, vid);
+        const rows = selectedAdmLevel === 'District'
+          ? await getDistrictDataForColumnAndTable(col, vid)
+          : await getRegionDataForColumnAndTable(col, vid);
         const m = new Map<string, number | null>();
         for (const r of rows as any[]) {
-          const name = String(r.District ?? '').trim();
+          const name = String((r.District ?? r.Region) ?? '').trim();
           districtSet.add(name);
           m.set(name, typeof r.value === 'number' ? r.value : (r.value == null ? null : Number(r.value)));
         }
@@ -149,13 +157,13 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoad
         </div>
         {/* Top-right controls inside header */}
         <div className="flex items-center gap-2">
+          {/* Administrative level selector */}
+          <AdminLevelSelect
+            value={selectedAdmLevel}
+            onChange={(val) => { onAdmLevelChange(val); setDatasetSelectorOpen(true); }}
+          />
+
           <Sheet open={datasetSelectorOpen} onOpenChange={setDatasetSelectorOpen}>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Menu className="h-4 w-4 mr-2" />
-                {t('map.selectDataset')}
-              </Button>
-            </SheetTrigger>
             <SheetContent side="left" className="w-full sm:w-96 p-0 overflow-hidden">
               <SheetHeader className="sr-only">
                 <SheetTitle>{t('selector.title')}</SheetTitle>
@@ -244,6 +252,7 @@ export function MapViewer({ onBack, treeData, geoJsonData, onLoadDataset, onLoad
                 geoJsonData={geoJsonData}
                 districtData={currentData}
                 datasetName={(columnMeta as any)?.column_name || selectedVariant}
+                idProperty={selectedAdmLevel === 'District' ? 'District' : 'Region'}
               />
               {/* Language selector pinned to top-right when map is displayed */}
               <LanguageSelector positionClass="absolute top-4 right-4 z-20" />
@@ -308,8 +317,26 @@ function VariantSelect({ disabled, value, onChange, options, label }: VariantSel
   );
 }
 
+// Admin level select component
+function AdminLevelSelect({ value, onChange }: { value: 'District' | 'Region'; onChange: (v: 'District' | 'Region') => void }) {
+  const { language } = useLanguage();
+  const labelDistrict = language === 'pl' ? 'Powiaty' : 'Districts';
+  const labelRegion = language === 'pl' ? 'Województwa' : 'Voivodships';
+  return (
+    <Select value={value} onValueChange={(v) => onChange(v as 'District' | 'Region')}>
+      <SelectTrigger className="h-9 w-44 text-sm">
+        <SelectValue placeholder={labelDistrict} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="District">{labelDistrict}</SelectItem>
+        <SelectItem value="Region">{labelRegion}</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+
 // CSV helpers and download actions
-import { getEnglishFullPathFromDatasetId, getVariantColumnsForCategoryEng, getDistrictDataForColumnAndTable } from '../lib/duckdb';
+import { getEnglishFullPathFromDatasetId, getVariantColumnsForCategoryEng, getDistrictDataForColumnAndTable, getRegionDataForColumnAndTable } from '../lib/duckdb';
 
 function csvEscape(value: string | number | null | undefined): string {
   const s = value == null ? '' : String(value);

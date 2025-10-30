@@ -112,14 +112,17 @@ export async function getDatasetHierarchy(c: duckdb.AsyncDuckDBConnection) {
 }
 
 // Fetch category path strings from columns_metadata using language-specific column
-export async function getCategoryPaths(language: 'en' | 'pl') {
+export async function getCategoryPaths(language: 'en' | 'pl', admLevel: 'District' | 'Region') {
   if (!conn) throw new Error('DuckDB not initialized');
   const col = language === 'pl' ? 'category_pol' : 'category_eng';
-  // DISTINCT paths, trimmed, ignoring empties
+  // DISTINCT paths filtered by adm_level of the underlying data table
   const rows = await queryData(conn, `
-    SELECT DISTINCT TRIM(${col}) AS path
-    FROM columns_metadata
-    WHERE ${col} IS NOT NULL AND TRIM(${col}) <> ''
+    SELECT DISTINCT TRIM(cm.${col}) AS path
+    FROM columns_metadata cm
+    JOIN data_tables_metadata dtm
+      ON TRIM(cm.data_table_id) = TRIM(dtm.data_table_id)
+    WHERE cm.${col} IS NOT NULL AND TRIM(cm.${col}) <> ''
+      AND TRIM(COALESCE(dtm.adm_level, '')) = '${admLevel}'
     ORDER BY path
   `);
   return rows.map((r: any) => r.path as string);
@@ -249,6 +252,40 @@ export async function getDistrictDataForColumnAndTable(columnName: string, dataT
     WHERE TRIM(variable_name) = '${c}' AND TRIM(data_table_id) = '${d}'
   `);
   return rows as Array<{ District: string; value: number | null }>;
+}
+
+// Region-level utilities analogous to district helpers
+export async function getRegionDatasetsValueColumn() {
+  if (!conn) throw new Error('DuckDB not initialized');
+  const cols = await queryData(conn, `
+    SELECT column_name, data_type
+    FROM information_schema.columns
+    WHERE table_name = 'region_datasets'
+    ORDER BY ordinal_position
+  `);
+  const valueCol = cols.find((c: any) => (c.column_name as string).toLowerCase() === 'value');
+  if (valueCol) return valueCol.column_name as string;
+  const numeric = cols.find((c: any) => {
+    const name = (c.column_name as string).toLowerCase();
+    const dt = (c.data_type as string).toLowerCase();
+    if (name === 'region' || name === 'variable_name') return false;
+    return dt.includes('int') || dt.includes('double') || dt.includes('decimal') || dt.includes('real') || dt.includes('numeric');
+  });
+  if (!numeric) throw new Error('Could not determine value column in region_datasets');
+  return numeric.column_name as string;
+}
+
+export async function getRegionDataForColumnAndTable(columnName: string, dataTableId: string) {
+  if (!conn) throw new Error('DuckDB not initialized');
+  const valueCol = await getRegionDatasetsValueColumn();
+  const c = columnName.replace(/'/g, "''");
+  const d = dataTableId.replace(/'/g, "''");
+  const rows = await queryData(conn, `
+    SELECT TRIM(Region) AS Region, "${valueCol}" AS value
+    FROM region_datasets
+    WHERE TRIM(variable_name) = '${c}' AND TRIM(data_table_id) = '${d}'
+  `);
+  return rows as Array<{ Region: string; value: number | null }>;
 }
 
 export async function getDataTableMetadata(dataTableId: string) {
