@@ -43,6 +43,13 @@ export const aboutContent: Record<'en' | 'pl', { sections: AboutSection[] }> = {
           'The interwar period was a time of significant transformation for Poland. After 123 years of partition, the newly independent nation faced the task of unifying territories that had been under different administrative systems (Russian, Prussian, and Austro‑Hungarian).',
           'This data reflects both the challenges and achievements of this era: the development of the port of Gdynia, industrialization efforts, educational expansion, infrastructure improvements, and the gradual modernization of Polish society and economy.'
         ]
+      },
+      {
+        title: 'Acknowledgments',
+        paragraphs: [
+          'I would like to thank Dr. Marcin Wroński for the idea and his constant support during the construction of the database. I am also grateful to Professor Nikolaus Wolf for inspiring my fascination with economic history, his unparalleled lectures on the history of economics, and for supervising my master’s thesis as my advisor.',
+          'I would like to thank Mikołaj Kiljański for digitizing the first versions of the detailed county maps of the Second Polish Republic. I am also grateful to Dr. Ignacy Doliński and Michał Kiljański for the tremendous work they put into geolocating all the cities of the Second Polish Republic.'
+        ]
       }
     ]
   },
@@ -83,6 +90,13 @@ export const aboutContent: Record<'en' | 'pl', { sections: AboutSection[] }> = {
         paragraphs: [
           'Okres międzywojenny był czasem intensywnych przemian w Polsce. Po 123 latach zaborów odrodzone państwo musiało zintegrować ziemie podlegające wcześniej różnym systemom administracyjnym (rosyjskiemu, pruskiemu i austro‑węgierskiemu).',
           'Dane odzwierciedlają zarówno wyzwania, jak i osiągnięcia tamtych lat: rozwój portu w Gdyni, procesy industrializacji, rozbudowę szkolnictwa, poprawę infrastruktury oraz stopniową modernizację społeczeństwa i gospodarki.'
+        ]
+      },
+      {
+        title: 'Podziękowania',
+        paragraphs: [
+          'Dziękuję dr. Marcinowi Wrońskiemu za pomysł i nieustające wsparcie podczas budowy bazy danych. Dziękuję profesorowi Nikolausowi Wolfowi za rozbudzenie we mnie fascynacji ekonomią historyczną, niezrównane wykłady z historii ekonomii i opiekę nad moją pracą magisterską jako promotor mojej pracy magisterskiej.',
+          'Dziękuję Mikołajowi Kiljańskiemu za digitalizację pierwszych wersji szczegółowych map powiatowych II RP. Dziękuję dr. Ignacemu Dolińskiemu i Michałowi Kiljańskiemu za ogromną pracę włożoną w geolokalizację wszystich miast II RP.'
         ]
       }
     ]
