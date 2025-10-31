@@ -93,6 +93,17 @@ export const aboutContent: Record<'en' | 'pl', { sections: AboutSection[] }> = {
         ]
       },
       {
+        title: 'Pomóż budować bazę danych!',
+        paragraphs: [
+          'Istnieje kilka zespołów danych stanowiących fascynujący materiał źródłowy na temat geografii ekonomicznej II RP:',
+          ' - Dane na temat stacjonowania armii - rekonstrukcja na temat źródeł wojskowych, nie pojawiają się w spisach. [materiał na pracę magisterską]',
+          ' - Dane na temat elektrowni i zakładów przemysłowych pobierających prąd - jedne z geograficznie najbardziej szczegółowych danych na temat II RP publikowane w Statystyce Zakładów Elektrycznych w Polsce (1925-1936). [materiał na pracę magisterską]',
+          ' - Dane na temat infrastruktury w miastach (wyposażenia w instalacje elektryczne i gazowe, kanalizację, wodociąg, materiał konstrukcyjny ścian i dachów). [materiał na licencjat]',
+          ' - Dane na temat wielkiej własności rolnej w 1921 (wielkość i użytkowanie gruntu w wielkiej własności prywatnej, kościelnej i publicznej + szczegółowy spis posiadanych maszyn rolniczych i zakładów produkcji rolnej). [materiał na licencjat lub pracę magisterską]',
+          'Jeśli fascynujesz się historią i chcesz wesprzeć wysiłek budowy tej bazy dzięki digitalizacji (w czasie wolnym czy w ramach swojej pracy naukowej), oferuję z mojej strony wsparcie w doborze najlepszych narzędzi cyfrowych do digitalizacji i wsparcie w opracowaniu źródeł.'
+        ]
+      },
+      {
         title: 'Podziękowania',
         paragraphs: [
           'Dziękuję dr. Marcinowi Wrońskiemu za pomysł i nieustające wsparcie podczas budowy bazy danych. Dziękuję profesorowi Nikolausowi Wolfowi za rozbudzenie we mnie fascynacji ekonomią historyczną, niezrównane wykłady z historii ekonomii i opiekę nad moją pracą magisterską jako promotor mojej pracy magisterskiej.',
