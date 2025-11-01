@@ -102,7 +102,7 @@ export const aboutContent: Record<'en' | 'pl', { sections: AboutSection[] }> = {
           'Dane na temat elektrowni i zakładów przemysłowych pobierających prąd - jedne z geograficznie najbardziej szczegółowych danych na temat II RP publikowane w Statystyce Zakładów Elektrycznych w Polsce (1925-1936). [materiał na pracę magisterską]',
           'Dane na temat infrastruktury w miastach w 1931 r. (wyposażenia w instalacje elektryczne i gazowe, kanalizację, wodociąg, materiał konstrukcyjny ścian i dachów). [materiał na licencjat]',
           'Dane na temat wielkiej własności rolnej w 1921 (wielkość i użytkowanie gruntu w wielkiej własności prywatnej, kościelnej i publicznej + szczegółowy spis posiadanych maszyn rolniczych i zakładów produkcji rolnej). [materiał na licencjat lub pracę magisterską]',
-          'Wszelkie typy danych z podziałem na płci (np. zatrudnienie kobiet według sektorów). Z powodów ograniczonych zasobów czasowych, większość danych w tej bazie była spisywana bez podziału na płci. [materiał na pracę licencjacką, magisterską, lub doktorską]'
+          'Wszelkie typy danych o ludności z podziałem na płci (np. zatrudnienie kobiet według sektorów). Z powodów ograniczonych zasobów czasowych, większość danych w tej bazie była spisywana bez podziału na płci. [materiał na pracę licencjacką, magisterską lub doktorską]'
         ],
         paragraphs: [
           'Jeśli fascynujesz się historią i chcesz wesprzeć wysiłek budowy tej bazy dzięki digitalizacji (w czasie wolnym czy w ramach swojej pracy naukowej), oferuję z mojej strony wsparcie w doborze najlepszych narzędzi cyfrowych do digitalizacji i wsparcie w opracowaniu źródeł.'
